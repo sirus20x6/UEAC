@@ -11,6 +11,7 @@ class FGitRepository;
 class URaceManager;
 class UTechTreeManager;
 class UShipInfrastructureManager;
+class UJourneyManager;
 
 /**
  * Save system using git for version control and branching
@@ -123,6 +124,9 @@ private:
 
 	UPROPERTY()
 	UShipInfrastructureManager* ShipInfrastructureManager;
+
+	UPROPERTY()
+	UJourneyManager* JourneyManager;
 
 	// Error tracking
 	FString LastError;
