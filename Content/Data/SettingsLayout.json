@@ -1,0 +1,178 @@
+{
+  "SettingsLayout": {
+    "Title": "Game Settings",
+    "Sections": [
+      {
+        "Name": "Graphics",
+        "Type": "Category",
+        "Controls": [
+          {
+            "Type": "ComboBox",
+            "Name": "ResolutionComboBox",
+            "Label": "Resolution",
+            "Options": ["1920x1080", "1680x1050", "1600x900", "1440x900", "1366x768", "1280x720", "2560x1440", "3840x2160"]
+          },
+          {
+            "Type": "ComboBox", 
+            "Name": "WindowModeComboBox",
+            "Label": "Window Mode",
+            "Options": ["Fullscreen", "Windowed Fullscreen", "Windowed"]
+          },
+          {
+            "Type": "ComboBox",
+            "Name": "GraphicsQualityComboBox", 
+            "Label": "Graphics Quality",
+            "Options": ["Low", "Medium", "High", "Epic", "Cinematic"]
+          },
+          {
+            "Type": "Slider",
+            "Name": "ViewDistanceSlider",
+            "Label": "View Distance",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "ShadowQualitySlider", 
+            "Label": "Shadow Quality",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "TextureQualitySlider",
+            "Label": "Texture Quality", 
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "AntiAliasingSlider",
+            "Label": "Anti-Aliasing",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "PostProcessSlider",
+            "Label": "Post Processing",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "EffectsQualitySlider",
+            "Label": "Effects Quality",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "FoliageQualitySlider",
+            "Label": "Foliage Quality",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "Slider",
+            "Name": "ShadingQualitySlider",
+            "Label": "Shading Quality",
+            "Min": 0,
+            "Max": 4,
+            "Step": 1,
+            "ShowValue": true
+          },
+          {
+            "Type": "CheckBox",
+            "Name": "VSyncCheckBox",
+            "Label": "VSync"
+          },
+          {
+            "Type": "Slider",
+            "Name": "FrameRateLimitSlider",
+            "Label": "Frame Rate Limit",
+            "Min": 0,
+            "Max": 144,
+            "Step": 1,
+            "ShowValue": true,
+            "ValueSuffix": " FPS",
+            "ZeroText": "Unlimited"
+          }
+        ]
+      },
+      {
+        "Name": "Audio",
+        "Type": "Category",
+        "Controls": [
+          {
+            "Type": "Slider",
+            "Name": "MasterVolumeSlider",
+            "Label": "Master Volume",
+            "Min": 0,
+            "Max": 1,
+            "Step": 0.01,
+            "ShowValue": true,
+            "ValueMultiplier": 100,
+            "ValueSuffix": "%"
+          },
+          {
+            "Type": "Slider", 
+            "Name": "MusicVolumeSlider",
+            "Label": "Music Volume",
+            "Min": 0,
+            "Max": 1,
+            "Step": 0.01,
+            "ShowValue": true,
+            "ValueMultiplier": 100,
+            "ValueSuffix": "%"
+          },
+          {
+            "Type": "Slider",
+            "Name": "SFXVolumeSlider", 
+            "Label": "SFX Volume",
+            "Min": 0,
+            "Max": 1,
+            "Step": 0.01,
+            "ShowValue": true,
+            "ValueMultiplier": 100,
+            "ValueSuffix": "%"
+          }
+        ]
+      }
+    ],
+    "ActionButtons": [
+      {
+        "Type": "Button",
+        "Name": "ApplyButton", 
+        "Label": "Apply Settings",
+        "Style": "Primary"
+      },
+      {
+        "Type": "Button",
+        "Name": "ResetToDefaultsButton",
+        "Label": "Reset to Defaults", 
+        "Style": "Secondary"
+      },
+      {
+        "Type": "Button",
+        "Name": "BackButton",
+        "Label": "Back",
+        "Style": "Secondary"
+      }
+    ]
+  }
+}
