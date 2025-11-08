@@ -4,6 +4,7 @@
 #include "GitRepository.h"
 #include "../Race/RaceManager.h"
 #include "../TechTree/TechTreeManager.h"
+#include "../Infrastructure/ShipInfrastructureManager.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "Misc/DateTime.h"
@@ -23,6 +24,7 @@ void USaveSystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		RaceManager = GameInstance->GetSubsystem<URaceManager>();
 		TechTreeManager = GameInstance->GetSubsystem<UTechTreeManager>();
+		ShipInfrastructureManager = GameInstance->GetSubsystem<UShipInfrastructureManager>();
 	}
 
 	// Create git repository instance
@@ -308,7 +310,17 @@ bool USaveSystem::SerializeGameState(FGameSaveData& OutSaveData)
 		OutSaveData.TechTreeJSON = TechTreeString;
 	}
 
-	// TODO: Serialize other game systems
+	// Serialize ship infrastructure
+	if (ShipInfrastructureManager)
+	{
+		OutSaveData.ShipInfrastructureJSON = ShipInfrastructureManager->SerializeToJSON();
+	}
+	else
+	{
+		OutSaveData.ShipInfrastructureJSON = TEXT("{}"); // Empty object if no ship data
+	}
+
+	// TODO: Serialize other game systems (journey, encounters, colonies, etc.)
 
 	OutSaveData.PlayerProgressJSON = TEXT("{}"); // Placeholder
 	OutSaveData.GameStateJSON = TEXT("{}"); // Placeholder
@@ -346,6 +358,14 @@ bool USaveSystem::WriteGameStateFiles(const FGameSaveData& SaveData)
 	if (!FFileHelper::SaveStringToFile(SaveData.TechTreeJSON, *TechPath))
 	{
 		SetError(TEXT("Failed to write tech tree"));
+		return false;
+	}
+
+	// Write ship infrastructure
+	FString ShipPath = FPaths::Combine(WorkDir, TEXT("ShipInfrastructure.json"));
+	if (!FFileHelper::SaveStringToFile(SaveData.ShipInfrastructureJSON, *ShipPath))
+	{
+		SetError(TEXT("Failed to write ship infrastructure"));
 		return false;
 	}
 

@@ -105,6 +105,9 @@ struct FGameSaveData
 	FString TechTreeJSON;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")
+	FString ShipInfrastructureJSON;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")
 	FString PlayerProgressJSON;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")

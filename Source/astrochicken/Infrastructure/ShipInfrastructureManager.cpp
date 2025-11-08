@@ -1283,12 +1283,644 @@ void UShipInfrastructureManager::InitializeStartingShip()
 
 FString UShipInfrastructureManager::SerializeToJSON()
 {
-	// TODO: Implement full JSON serialization
-	return TEXT("{}");
+	TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
+
+	// ===== Serialize Ship Layout =====
+	TSharedPtr<FJsonObject> ShipLayoutObj = MakeShareable(new FJsonObject());
+	ShipLayoutObj->SetStringField(TEXT("ShipName"), ShipLayout.ShipName);
+	ShipLayoutObj->SetStringField(TEXT("ShipClass"), ShipLayout.ShipClass);
+	ShipLayoutObj->SetNumberField(TEXT("TotalCompartments"), ShipLayout.TotalCompartments);
+	ShipLayoutObj->SetNumberField(TEXT("TotalDecks"), ShipLayout.TotalDecks);
+	ShipLayoutObj->SetNumberField(TEXT("OverallIntegrity"), ShipLayout.OverallIntegrity);
+
+	// Serialize compartments
+	TArray<TSharedPtr<FJsonValue>> CompartmentsArray;
+	for (const auto& Pair : ShipLayout.Compartments)
+	{
+		const FShipCompartment& Comp = Pair.Value;
+		TSharedPtr<FJsonObject> CompObj = MakeShareable(new FJsonObject());
+		CompObj->SetStringField(TEXT("CompartmentID"), Comp.CompartmentID);
+		CompObj->SetStringField(TEXT("CompartmentName"), Comp.CompartmentName);
+		CompObj->SetNumberField(TEXT("Type"), static_cast<int32>(Comp.Type));
+		CompObj->SetNumberField(TEXT("DeckNumber"), Comp.DeckNumber);
+		CompObj->SetNumberField(TEXT("Status"), static_cast<int32>(Comp.Status));
+		CompObj->SetNumberField(TEXT("Integrity"), Comp.Integrity);
+		CompObj->SetNumberField(TEXT("Volume"), Comp.Volume);
+		CompObj->SetNumberField(TEXT("MaxCrewCapacity"), Comp.MaxCrewCapacity);
+		CompObj->SetNumberField(TEXT("CurrentCrewCount"), Comp.CurrentCrewCount);
+
+		// Atmosphere
+		TSharedPtr<FJsonObject> AtmosObj = MakeShareable(new FJsonObject());
+		AtmosObj->SetNumberField(TEXT("OxygenLevel"), Comp.Atmosphere.OxygenLevel);
+		AtmosObj->SetNumberField(TEXT("Pressure"), Comp.Atmosphere.Pressure);
+		AtmosObj->SetNumberField(TEXT("Temperature"), Comp.Atmosphere.Temperature);
+		CompObj->SetObjectField(TEXT("Atmosphere"), AtmosObj);
+
+		CompObj->SetBoolField(TEXT("bIsOnFire"), Comp.bIsOnFire);
+		CompObj->SetNumberField(TEXT("FireIntensity"), Comp.FireIntensity);
+
+		CompartmentsArray.Add(MakeShareable(new FJsonValueObject(CompObj)));
+	}
+	ShipLayoutObj->SetArrayField(TEXT("Compartments"), CompartmentsArray);
+
+	// Serialize doors
+	TArray<TSharedPtr<FJsonValue>> DoorsArray;
+	for (const auto& Pair : ShipLayout.Doors)
+	{
+		const FShipDoor& Door = Pair.Value;
+		TSharedPtr<FJsonObject> DoorObj = MakeShareable(new FJsonObject());
+		DoorObj->SetStringField(TEXT("DoorID"), Door.DoorID);
+		DoorObj->SetNumberField(TEXT("State"), static_cast<int32>(Door.State));
+		DoorObj->SetNumberField(TEXT("Health"), Door.Health);
+		DoorObj->SetNumberField(TEXT("PowerRequired"), Door.PowerRequired);
+
+		TArray<TSharedPtr<FJsonValue>> ConnectedComps;
+		for (const FString& CompID : Door.ConnectedCompartments)
+		{
+			ConnectedComps.Add(MakeShareable(new FJsonValueString(CompID)));
+		}
+		DoorObj->SetArrayField(TEXT("ConnectedCompartments"), ConnectedComps);
+
+		DoorsArray.Add(MakeShareable(new FJsonValueObject(DoorObj)));
+	}
+	ShipLayoutObj->SetArrayField(TEXT("Doors"), DoorsArray);
+
+	RootObject->SetObjectField(TEXT("ShipLayout"), ShipLayoutObj);
+
+	// ===== Serialize Electrical Grid =====
+	TSharedPtr<FJsonObject> GridObj = MakeShareable(new FJsonObject());
+	GridObj->SetNumberField(TEXT("TotalGeneration"), ElectricalGrid.TotalGeneration);
+	GridObj->SetNumberField(TEXT("TotalConsumption"), ElectricalGrid.TotalConsumption);
+	GridObj->SetNumberField(TEXT("GridEfficiency"), ElectricalGrid.GridEfficiency);
+	GridObj->SetNumberField(TEXT("OverloadedConduits"), ElectricalGrid.OverloadedConduits);
+	GridObj->SetNumberField(TEXT("OfflineNodes"), ElectricalGrid.OfflineNodes);
+
+	// Serialize reactors
+	TArray<TSharedPtr<FJsonValue>> ReactorsArray;
+	for (const auto& Pair : ElectricalGrid.Reactors)
+	{
+		const FReactor& Reactor = Pair.Value;
+		TSharedPtr<FJsonObject> ReactorObj = MakeShareable(new FJsonObject());
+		ReactorObj->SetStringField(TEXT("ReactorID"), Pair.Key);
+		ReactorObj->SetStringField(TEXT("PowerNodeID"), Reactor.PowerNodeID);
+		ReactorObj->SetNumberField(TEXT("ReactorType"), static_cast<int32>(Reactor.ReactorType));
+		ReactorObj->SetNumberField(TEXT("FuelLevel"), Reactor.FuelLevel);
+		ReactorObj->SetNumberField(TEXT("FuelConsumptionRate"), Reactor.FuelConsumptionRate);
+		ReactorObj->SetNumberField(TEXT("Temperature"), Reactor.Temperature);
+		ReactorObj->SetNumberField(TEXT("OptimalTemperature"), Reactor.OptimalTemperature);
+		ReactorObj->SetNumberField(TEXT("MaxSafeTemperature"), Reactor.MaxSafeTemperature);
+		ReactorObj->SetNumberField(TEXT("PowerOutputPercent"), Reactor.PowerOutputPercent);
+		ReactorObj->SetBoolField(TEXT("bRequiresCoolant"), Reactor.bRequiresCoolant);
+		ReactorObj->SetNumberField(TEXT("CoolantLevel"), Reactor.CoolantLevel);
+		ReactorObj->SetBoolField(TEXT("bEmergencyShutdown"), Reactor.bEmergencyShutdown);
+
+		ReactorsArray.Add(MakeShareable(new FJsonValueObject(ReactorObj)));
+	}
+	GridObj->SetArrayField(TEXT("Reactors"), ReactorsArray);
+
+	// Serialize power nodes
+	TArray<TSharedPtr<FJsonValue>> NodesArray;
+	for (const auto& Pair : ElectricalGrid.Nodes)
+	{
+		const FPowerNode& Node = Pair.Value;
+		TSharedPtr<FJsonObject> NodeObj = MakeShareable(new FJsonObject());
+		NodeObj->SetStringField(TEXT("NodeID"), Node.NodeID);
+		NodeObj->SetStringField(TEXT("NodeName"), Node.NodeName);
+		NodeObj->SetNumberField(TEXT("Type"), static_cast<int32>(Node.Type));
+		NodeObj->SetNumberField(TEXT("Status"), static_cast<int32>(Node.Status));
+		NodeObj->SetStringField(TEXT("CompartmentID"), Node.CompartmentID);
+		NodeObj->SetNumberField(TEXT("MaxPowerGeneration"), Node.MaxPowerGeneration);
+		NodeObj->SetNumberField(TEXT("PowerGeneration"), Node.PowerGeneration);
+		NodeObj->SetNumberField(TEXT("RequiredPower"), Node.RequiredPower);
+		NodeObj->SetNumberField(TEXT("PowerConsumption"), Node.PowerConsumption);
+		NodeObj->SetNumberField(TEXT("MaxThroughput"), Node.MaxThroughput);
+		NodeObj->SetNumberField(TEXT("Health"), Node.Health);
+		NodeObj->SetNumberField(TEXT("Priority"), Node.Priority);
+
+		NodesArray.Add(MakeShareable(new FJsonValueObject(NodeObj)));
+	}
+	GridObj->SetArrayField(TEXT("Nodes"), NodesArray);
+
+	// Serialize power conduits
+	TArray<TSharedPtr<FJsonValue>> ConduitsArray;
+	for (const auto& Pair : ElectricalGrid.Conduits)
+	{
+		const FPowerConduit& Conduit = Pair.Value;
+		TSharedPtr<FJsonObject> ConduitObj = MakeShareable(new FJsonObject());
+		ConduitObj->SetStringField(TEXT("ConduitID"), Conduit.ConduitID);
+		ConduitObj->SetStringField(TEXT("SourceNodeID"), Conduit.SourceNodeID);
+		ConduitObj->SetStringField(TEXT("DestinationNodeID"), Conduit.DestinationNodeID);
+		ConduitObj->SetNumberField(TEXT("MaxCapacity"), Conduit.MaxCapacity);
+		ConduitObj->SetNumberField(TEXT("CurrentFlow"), Conduit.CurrentFlow);
+		ConduitObj->SetNumberField(TEXT("Efficiency"), Conduit.Efficiency);
+		ConduitObj->SetNumberField(TEXT("Health"), Conduit.Health);
+		ConduitObj->SetBoolField(TEXT("bIsDamaged"), Conduit.bIsDamaged);
+
+		ConduitsArray.Add(MakeShareable(new FJsonValueObject(ConduitObj)));
+	}
+	GridObj->SetArrayField(TEXT("Conduits"), ConduitsArray);
+
+	RootObject->SetObjectField(TEXT("ElectricalGrid"), GridObj);
+
+	// ===== Serialize Hardpoint Layout =====
+	TSharedPtr<FJsonObject> HardpointsObj = MakeShareable(new FJsonObject());
+	HardpointsObj->SetNumberField(TEXT("TotalHardpoints"), HardpointLayout.TotalHardpoints);
+	HardpointsObj->SetNumberField(TEXT("OccupiedHardpoints"), HardpointLayout.OccupiedHardpoints);
+	HardpointsObj->SetNumberField(TEXT("DamagedHardpoints"), HardpointLayout.DamagedHardpoints);
+
+	TArray<TSharedPtr<FJsonValue>> HardpointsArray;
+	for (const auto& Pair : HardpointLayout.Hardpoints)
+	{
+		const FHardpoint& HP = Pair.Value;
+		TSharedPtr<FJsonObject> HPObj = MakeShareable(new FJsonObject());
+		HPObj->SetStringField(TEXT("HardpointID"), HP.HardpointID);
+		HPObj->SetStringField(TEXT("HardpointName"), HP.HardpointName);
+		HPObj->SetNumberField(TEXT("Size"), static_cast<int32>(HP.Size));
+		HPObj->SetNumberField(TEXT("Status"), static_cast<int32>(HP.Status));
+		HPObj->SetStringField(TEXT("CompartmentID"), HP.CompartmentID);
+		HPObj->SetStringField(TEXT("PowerNodeID"), HP.PowerNodeID);
+		HPObj->SetStringField(TEXT("CoolantNodeID"), HP.CoolantNodeID);
+		HPObj->SetNumberField(TEXT("Integrity"), HP.Integrity);
+		HPObj->SetNumberField(TEXT("MaxLoadCapacity"), HP.MaxLoadCapacity);
+
+		// Position
+		TSharedPtr<FJsonObject> PosObj = MakeShareable(new FJsonObject());
+		PosObj->SetNumberField(TEXT("X"), HP.Position.X);
+		PosObj->SetNumberField(TEXT("Y"), HP.Position.Y);
+		PosObj->SetNumberField(TEXT("Z"), HP.Position.Z);
+		HPObj->SetObjectField(TEXT("Position"), PosObj);
+
+		// Mounted Equipment
+		if (HP.HasMountedEquipment())
+		{
+			const FMountedEquipment& Eq = HP.MountedEquipment;
+			TSharedPtr<FJsonObject> EqObj = MakeShareable(new FJsonObject());
+			EqObj->SetStringField(TEXT("EquipmentID"), Eq.EquipmentID);
+			EqObj->SetStringField(TEXT("EquipmentName"), Eq.EquipmentName);
+			EqObj->SetNumberField(TEXT("Type"), static_cast<int32>(Eq.Type));
+			EqObj->SetNumberField(TEXT("RequiredSize"), static_cast<int32>(Eq.RequiredSize));
+			EqObj->SetNumberField(TEXT("State"), static_cast<int32>(Eq.State));
+			EqObj->SetNumberField(TEXT("Health"), Eq.Health);
+			EqObj->SetNumberField(TEXT("PowerRequired"), Eq.PowerRequired);
+			EqObj->SetNumberField(TEXT("PowerConsumption"), Eq.PowerConsumption);
+			EqObj->SetNumberField(TEXT("HeatGeneration"), Eq.HeatGeneration);
+			EqObj->SetNumberField(TEXT("CurrentHeat"), Eq.CurrentHeat);
+			EqObj->SetBoolField(TEXT("bRequiresCoolant"), Eq.bRequiresCoolant);
+			EqObj->SetNumberField(TEXT("CoolantFlow"), Eq.CoolantFlow);
+			EqObj->SetNumberField(TEXT("Mass"), Eq.Mass);
+			EqObj->SetNumberField(TEXT("CrewRequired"), Eq.CrewRequired);
+
+			// Performance stats
+			TSharedPtr<FJsonObject> StatsObj = MakeShareable(new FJsonObject());
+			for (const auto& StatPair : Eq.PerformanceStats)
+			{
+				StatsObj->SetNumberField(StatPair.Key, StatPair.Value);
+			}
+			EqObj->SetObjectField(TEXT("PerformanceStats"), StatsObj);
+
+			HPObj->SetObjectField(TEXT("MountedEquipment"), EqObj);
+		}
+
+		HardpointsArray.Add(MakeShareable(new FJsonValueObject(HPObj)));
+	}
+	HardpointsObj->SetArrayField(TEXT("Hardpoints"), HardpointsArray);
+
+	RootObject->SetObjectField(TEXT("HardpointLayout"), HardpointsObj);
+
+	// ===== Serialize Resource Network =====
+	TSharedPtr<FJsonObject> ResourceObj = MakeShareable(new FJsonObject());
+
+	// Life Support
+	TSharedPtr<FJsonObject> LifeSupportObj = MakeShareable(new FJsonObject());
+	LifeSupportObj->SetBoolField(TEXT("bIsOperational"), ResourceNetwork.LifeSupport.bIsOperational);
+	LifeSupportObj->SetNumberField(TEXT("OxygenProductionRate"), ResourceNetwork.LifeSupport.OxygenProductionRate);
+	LifeSupportObj->SetNumberField(TEXT("CO2RemovalRate"), ResourceNetwork.LifeSupport.CO2RemovalRate);
+	LifeSupportObj->SetNumberField(TEXT("WaterRecyclingRate"), ResourceNetwork.LifeSupport.WaterRecyclingRate);
+	LifeSupportObj->SetNumberField(TEXT("CurrentCrew"), ResourceNetwork.LifeSupport.CurrentCrew);
+	LifeSupportObj->SetNumberField(TEXT("MaxCrewCapacity"), ResourceNetwork.LifeSupport.MaxCrewCapacity);
+	LifeSupportObj->SetNumberField(TEXT("OxygenGenerators"), ResourceNetwork.LifeSupport.OxygenGenerators);
+	LifeSupportObj->SetNumberField(TEXT("CO2Scrubbers"), ResourceNetwork.LifeSupport.CO2Scrubbers);
+	LifeSupportObj->SetNumberField(TEXT("WaterRecyclers"), ResourceNetwork.LifeSupport.WaterRecyclers);
+	ResourceObj->SetObjectField(TEXT("LifeSupport"), LifeSupportObj);
+
+	// Coolant System
+	TSharedPtr<FJsonObject> CoolantObj = MakeShareable(new FJsonObject());
+	CoolantObj->SetBoolField(TEXT("bIsOperational"), ResourceNetwork.Coolant.bIsOperational);
+	CoolantObj->SetNumberField(TEXT("CoolantLevel"), ResourceNetwork.Coolant.CoolantLevel);
+	CoolantObj->SetNumberField(TEXT("MaxCoolantCapacity"), ResourceNetwork.Coolant.MaxCoolantCapacity);
+	CoolantObj->SetNumberField(TEXT("HeatDissipationRate"), ResourceNetwork.Coolant.HeatDissipationRate);
+	CoolantObj->SetNumberField(TEXT("CurrentHeatLoad"), ResourceNetwork.Coolant.CurrentHeatLoad);
+	CoolantObj->SetNumberField(TEXT("HeatExchangers"), ResourceNetwork.Coolant.HeatExchangers);
+	CoolantObj->SetNumberField(TEXT("Radiators"), ResourceNetwork.Coolant.Radiators);
+	CoolantObj->SetNumberField(TEXT("RadiatorEfficiency"), ResourceNetwork.Coolant.RadiatorEfficiency);
+	ResourceObj->SetObjectField(TEXT("Coolant"), CoolantObj);
+
+	// Resource nodes
+	TArray<TSharedPtr<FJsonValue>> ResNodesArray;
+	for (const auto& Pair : ResourceNetwork.Nodes)
+	{
+		const FResourceNode& ResNode = Pair.Value;
+		TSharedPtr<FJsonObject> ResNodeObj = MakeShareable(new FJsonObject());
+		ResNodeObj->SetStringField(TEXT("NodeID"), ResNode.NodeID);
+		ResNodeObj->SetStringField(TEXT("NodeName"), ResNode.NodeName);
+		ResNodeObj->SetNumberField(TEXT("Type"), static_cast<int32>(ResNode.Type));
+		ResNodeObj->SetStringField(TEXT("CompartmentID"), ResNode.CompartmentID);
+		ResNodeObj->SetNumberField(TEXT("ProductionRate"), ResNode.ProductionRate);
+		ResNodeObj->SetNumberField(TEXT("ConsumptionRate"), ResNode.ConsumptionRate);
+		ResNodeObj->SetNumberField(TEXT("StorageCapacity"), ResNode.StorageCapacity);
+		ResNodeObj->SetNumberField(TEXT("CurrentStorage"), ResNode.CurrentStorage);
+		ResNodeObj->SetNumberField(TEXT("Health"), ResNode.Health);
+		ResNodeObj->SetBoolField(TEXT("bIsOperational"), ResNode.bIsOperational);
+
+		ResNodesArray.Add(MakeShareable(new FJsonValueObject(ResNodeObj)));
+	}
+	ResourceObj->SetArrayField(TEXT("Nodes"), ResNodesArray);
+
+	// Resource pipes
+	TArray<TSharedPtr<FJsonValue>> ResPipesArray;
+	for (const auto& Pair : ResourceNetwork.Pipes)
+	{
+		const FResourcePipe& Pipe = Pair.Value;
+		TSharedPtr<FJsonObject> PipeObj = MakeShareable(new FJsonObject());
+		PipeObj->SetStringField(TEXT("PipeID"), Pipe.PipeID);
+		PipeObj->SetNumberField(TEXT("ResourceType"), static_cast<int32>(Pipe.ResourceType));
+		PipeObj->SetStringField(TEXT("SourceNodeID"), Pipe.SourceNodeID);
+		PipeObj->SetStringField(TEXT("DestinationNodeID"), Pipe.DestinationNodeID);
+		PipeObj->SetNumberField(TEXT("MaxFlowRate"), Pipe.MaxFlowRate);
+		PipeObj->SetNumberField(TEXT("CurrentFlowRate"), Pipe.CurrentFlowRate);
+		PipeObj->SetNumberField(TEXT("Pressure"), Pipe.Pressure);
+		PipeObj->SetNumberField(TEXT("Health"), Pipe.Health);
+		PipeObj->SetBoolField(TEXT("bIsLeaking"), Pipe.bIsLeaking);
+		PipeObj->SetNumberField(TEXT("LeakRate"), Pipe.LeakRate);
+
+		ResPipesArray.Add(MakeShareable(new FJsonValueObject(PipeObj)));
+	}
+	ResourceObj->SetArrayField(TEXT("Pipes"), ResPipesArray);
+
+	ResourceObj->SetNumberField(TEXT("LeakingPipes"), ResourceNetwork.LeakingPipes);
+	ResourceObj->SetNumberField(TEXT("TotalNodes"), ResourceNetwork.TotalNodes);
+	ResourceObj->SetNumberField(TEXT("TotalPipes"), ResourceNetwork.TotalPipes);
+
+	RootObject->SetObjectField(TEXT("ResourceNetwork"), ResourceObj);
+
+	// ===== Serialize Crew =====
+	RootObject->SetNumberField(TEXT("TotalCrewMembers"), TotalCrewMembers);
+
+	// Convert to JSON string
+	FString OutputString;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
+
+	UE_LOG(LogTemp, Log, TEXT("ShipInfrastructureManager: Serialized ship data (%d characters)"), OutputString.Len());
+
+	return OutputString;
 }
 
 bool UShipInfrastructureManager::DeserializeFromJSON(const FString& JSON)
 {
-	// TODO: Implement JSON deserialization
-	return false;
+	TSharedPtr<FJsonObject> RootObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JSON);
+
+	if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("ShipInfrastructureManager: Failed to parse JSON"));
+		return false;
+	}
+
+	// Clear existing data
+	ShipLayout.Compartments.Empty();
+	ShipLayout.Doors.Empty();
+	ElectricalGrid.Reactors.Empty();
+	ElectricalGrid.Nodes.Empty();
+	ElectricalGrid.Conduits.Empty();
+	HardpointLayout.Hardpoints.Empty();
+	ResourceNetwork.Nodes.Empty();
+	ResourceNetwork.Pipes.Empty();
+
+	// ===== Deserialize Ship Layout =====
+	const TSharedPtr<FJsonObject>* ShipLayoutObj;
+	if (RootObject->TryGetObjectField(TEXT("ShipLayout"), ShipLayoutObj))
+	{
+		ShipLayout.ShipName = (*ShipLayoutObj)->GetStringField(TEXT("ShipName"));
+		ShipLayout.ShipClass = (*ShipLayoutObj)->GetStringField(TEXT("ShipClass"));
+		ShipLayout.TotalCompartments = (*ShipLayoutObj)->GetIntegerField(TEXT("TotalCompartments"));
+		ShipLayout.TotalDecks = (*ShipLayoutObj)->GetIntegerField(TEXT("TotalDecks"));
+		ShipLayout.OverallIntegrity = (*ShipLayoutObj)->GetNumberField(TEXT("OverallIntegrity"));
+
+		// Deserialize compartments
+		const TArray<TSharedPtr<FJsonValue>>* CompartmentsArray;
+		if ((*ShipLayoutObj)->TryGetArrayField(TEXT("Compartments"), CompartmentsArray))
+		{
+			for (const TSharedPtr<FJsonValue>& CompValue : *CompartmentsArray)
+			{
+				const TSharedPtr<FJsonObject>& CompObj = CompValue->AsObject();
+				FShipCompartment Comp;
+
+				Comp.CompartmentID = CompObj->GetStringField(TEXT("CompartmentID"));
+				Comp.CompartmentName = CompObj->GetStringField(TEXT("CompartmentName"));
+				Comp.Type = static_cast<ECompartmentType>(CompObj->GetIntegerField(TEXT("Type")));
+				Comp.DeckNumber = CompObj->GetIntegerField(TEXT("DeckNumber"));
+				Comp.Status = static_cast<ECompartmentStatus>(CompObj->GetIntegerField(TEXT("Status")));
+				Comp.Integrity = CompObj->GetNumberField(TEXT("Integrity"));
+				Comp.Volume = CompObj->GetNumberField(TEXT("Volume"));
+				Comp.MaxCrewCapacity = CompObj->GetIntegerField(TEXT("MaxCrewCapacity"));
+				Comp.CurrentCrewCount = CompObj->GetIntegerField(TEXT("CurrentCrewCount"));
+
+				// Atmosphere
+				const TSharedPtr<FJsonObject>* AtmosObj;
+				if (CompObj->TryGetObjectField(TEXT("Atmosphere"), AtmosObj))
+				{
+					Comp.Atmosphere.OxygenLevel = (*AtmosObj)->GetNumberField(TEXT("OxygenLevel"));
+					Comp.Atmosphere.Pressure = (*AtmosObj)->GetNumberField(TEXT("Pressure"));
+					Comp.Atmosphere.Temperature = (*AtmosObj)->GetNumberField(TEXT("Temperature"));
+				}
+
+				Comp.bIsOnFire = CompObj->GetBoolField(TEXT("bIsOnFire"));
+				Comp.FireIntensity = CompObj->GetNumberField(TEXT("FireIntensity"));
+
+				ShipLayout.Compartments.Add(Comp.CompartmentID, Comp);
+			}
+		}
+
+		// Deserialize doors
+		const TArray<TSharedPtr<FJsonValue>>* DoorsArray;
+		if ((*ShipLayoutObj)->TryGetArrayField(TEXT("Doors"), DoorsArray))
+		{
+			for (const TSharedPtr<FJsonValue>& DoorValue : *DoorsArray)
+			{
+				const TSharedPtr<FJsonObject>& DoorObj = DoorValue->AsObject();
+				FShipDoor Door;
+
+				Door.DoorID = DoorObj->GetStringField(TEXT("DoorID"));
+				Door.State = static_cast<EDoorState>(DoorObj->GetIntegerField(TEXT("State")));
+				Door.Health = DoorObj->GetNumberField(TEXT("Health"));
+				Door.PowerRequired = DoorObj->GetNumberField(TEXT("PowerRequired"));
+
+				const TArray<TSharedPtr<FJsonValue>>* ConnectedComps;
+				if (DoorObj->TryGetArrayField(TEXT("ConnectedCompartments"), ConnectedComps))
+				{
+					for (const TSharedPtr<FJsonValue>& CompValue : *ConnectedComps)
+					{
+						Door.ConnectedCompartments.Add(CompValue->AsString());
+					}
+				}
+
+				ShipLayout.Doors.Add(Door.DoorID, Door);
+			}
+		}
+	}
+
+	// ===== Deserialize Electrical Grid =====
+	const TSharedPtr<FJsonObject>* GridObj;
+	if (RootObject->TryGetObjectField(TEXT("ElectricalGrid"), GridObj))
+	{
+		ElectricalGrid.TotalGeneration = (*GridObj)->GetNumberField(TEXT("TotalGeneration"));
+		ElectricalGrid.TotalConsumption = (*GridObj)->GetNumberField(TEXT("TotalConsumption"));
+		ElectricalGrid.GridEfficiency = (*GridObj)->GetNumberField(TEXT("GridEfficiency"));
+		ElectricalGrid.OverloadedConduits = (*GridObj)->GetIntegerField(TEXT("OverloadedConduits"));
+		ElectricalGrid.OfflineNodes = (*GridObj)->GetIntegerField(TEXT("OfflineNodes"));
+
+		// Deserialize reactors
+		const TArray<TSharedPtr<FJsonValue>>* ReactorsArray;
+		if ((*GridObj)->TryGetArrayField(TEXT("Reactors"), ReactorsArray))
+		{
+			for (const TSharedPtr<FJsonValue>& ReactorValue : *ReactorsArray)
+			{
+				const TSharedPtr<FJsonObject>& ReactorObj = ReactorValue->AsObject();
+				FReactor Reactor;
+
+				FString ReactorID = ReactorObj->GetStringField(TEXT("ReactorID"));
+				Reactor.PowerNodeID = ReactorObj->GetStringField(TEXT("PowerNodeID"));
+				Reactor.ReactorType = static_cast<EReactorType>(ReactorObj->GetIntegerField(TEXT("ReactorType")));
+				Reactor.FuelLevel = ReactorObj->GetNumberField(TEXT("FuelLevel"));
+				Reactor.FuelConsumptionRate = ReactorObj->GetNumberField(TEXT("FuelConsumptionRate"));
+				Reactor.Temperature = ReactorObj->GetNumberField(TEXT("Temperature"));
+				Reactor.OptimalTemperature = ReactorObj->GetNumberField(TEXT("OptimalTemperature"));
+				Reactor.MaxSafeTemperature = ReactorObj->GetNumberField(TEXT("MaxSafeTemperature"));
+				Reactor.PowerOutputPercent = ReactorObj->GetNumberField(TEXT("PowerOutputPercent"));
+				Reactor.bRequiresCoolant = ReactorObj->GetBoolField(TEXT("bRequiresCoolant"));
+				Reactor.CoolantLevel = ReactorObj->GetNumberField(TEXT("CoolantLevel"));
+				Reactor.bEmergencyShutdown = ReactorObj->GetBoolField(TEXT("bEmergencyShutdown"));
+
+				ElectricalGrid.Reactors.Add(ReactorID, Reactor);
+			}
+		}
+
+		// Deserialize power nodes
+		const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+		if ((*GridObj)->TryGetArrayField(TEXT("Nodes"), NodesArray))
+		{
+			for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+			{
+				const TSharedPtr<FJsonObject>& NodeObj = NodeValue->AsObject();
+				FPowerNode Node;
+
+				Node.NodeID = NodeObj->GetStringField(TEXT("NodeID"));
+				Node.NodeName = NodeObj->GetStringField(TEXT("NodeName"));
+				Node.Type = static_cast<EPowerNodeType>(NodeObj->GetIntegerField(TEXT("Type")));
+				Node.Status = static_cast<EPowerNodeStatus>(NodeObj->GetIntegerField(TEXT("Status")));
+				Node.CompartmentID = NodeObj->GetStringField(TEXT("CompartmentID"));
+				Node.MaxPowerGeneration = NodeObj->GetNumberField(TEXT("MaxPowerGeneration"));
+				Node.PowerGeneration = NodeObj->GetNumberField(TEXT("PowerGeneration"));
+				Node.RequiredPower = NodeObj->GetNumberField(TEXT("RequiredPower"));
+				Node.PowerConsumption = NodeObj->GetNumberField(TEXT("PowerConsumption"));
+				Node.MaxThroughput = NodeObj->GetNumberField(TEXT("MaxThroughput"));
+				Node.Health = NodeObj->GetNumberField(TEXT("Health"));
+				Node.Priority = NodeObj->GetIntegerField(TEXT("Priority"));
+
+				ElectricalGrid.Nodes.Add(Node.NodeID, Node);
+			}
+		}
+
+		// Deserialize power conduits
+		const TArray<TSharedPtr<FJsonValue>>* ConduitsArray;
+		if ((*GridObj)->TryGetArrayField(TEXT("Conduits"), ConduitsArray))
+		{
+			for (const TSharedPtr<FJsonValue>& ConduitValue : *ConduitsArray)
+			{
+				const TSharedPtr<FJsonObject>& ConduitObj = ConduitValue->AsObject();
+				FPowerConduit Conduit;
+
+				Conduit.ConduitID = ConduitObj->GetStringField(TEXT("ConduitID"));
+				Conduit.SourceNodeID = ConduitObj->GetStringField(TEXT("SourceNodeID"));
+				Conduit.DestinationNodeID = ConduitObj->GetStringField(TEXT("DestinationNodeID"));
+				Conduit.MaxCapacity = ConduitObj->GetNumberField(TEXT("MaxCapacity"));
+				Conduit.CurrentFlow = ConduitObj->GetNumberField(TEXT("CurrentFlow"));
+				Conduit.Efficiency = ConduitObj->GetNumberField(TEXT("Efficiency"));
+				Conduit.Health = ConduitObj->GetNumberField(TEXT("Health"));
+				Conduit.bIsDamaged = ConduitObj->GetBoolField(TEXT("bIsDamaged"));
+
+				ElectricalGrid.Conduits.Add(Conduit.ConduitID, Conduit);
+			}
+		}
+	}
+
+	// ===== Deserialize Hardpoint Layout =====
+	const TSharedPtr<FJsonObject>* HardpointsObj;
+	if (RootObject->TryGetObjectField(TEXT("HardpointLayout"), HardpointsObj))
+	{
+		HardpointLayout.TotalHardpoints = (*HardpointsObj)->GetIntegerField(TEXT("TotalHardpoints"));
+		HardpointLayout.OccupiedHardpoints = (*HardpointsObj)->GetIntegerField(TEXT("OccupiedHardpoints"));
+		HardpointLayout.DamagedHardpoints = (*HardpointsObj)->GetIntegerField(TEXT("DamagedHardpoints"));
+
+		const TArray<TSharedPtr<FJsonValue>>* HardpointsArray;
+		if ((*HardpointsObj)->TryGetArrayField(TEXT("Hardpoints"), HardpointsArray))
+		{
+			for (const TSharedPtr<FJsonValue>& HPValue : *HardpointsArray)
+			{
+				const TSharedPtr<FJsonObject>& HPObj = HPValue->AsObject();
+				FHardpoint HP;
+
+				HP.HardpointID = HPObj->GetStringField(TEXT("HardpointID"));
+				HP.HardpointName = HPObj->GetStringField(TEXT("HardpointName"));
+				HP.Size = static_cast<EHardpointSize>(HPObj->GetIntegerField(TEXT("Size")));
+				HP.Status = static_cast<EHardpointStatus>(HPObj->GetIntegerField(TEXT("Status")));
+				HP.CompartmentID = HPObj->GetStringField(TEXT("CompartmentID"));
+				HP.PowerNodeID = HPObj->GetStringField(TEXT("PowerNodeID"));
+				HP.CoolantNodeID = HPObj->GetStringField(TEXT("CoolantNodeID"));
+				HP.Integrity = HPObj->GetNumberField(TEXT("Integrity"));
+				HP.MaxLoadCapacity = HPObj->GetNumberField(TEXT("MaxLoadCapacity"));
+
+				// Position
+				const TSharedPtr<FJsonObject>* PosObj;
+				if (HPObj->TryGetObjectField(TEXT("Position"), PosObj))
+				{
+					HP.Position.X = (*PosObj)->GetNumberField(TEXT("X"));
+					HP.Position.Y = (*PosObj)->GetNumberField(TEXT("Y"));
+					HP.Position.Z = (*PosObj)->GetNumberField(TEXT("Z"));
+				}
+
+				// Mounted Equipment
+				const TSharedPtr<FJsonObject>* EqObj;
+				if (HPObj->TryGetObjectField(TEXT("MountedEquipment"), EqObj))
+				{
+					FMountedEquipment Eq;
+					Eq.EquipmentID = (*EqObj)->GetStringField(TEXT("EquipmentID"));
+					Eq.EquipmentName = (*EqObj)->GetStringField(TEXT("EquipmentName"));
+					Eq.Type = static_cast<EEquipmentType>((*EqObj)->GetIntegerField(TEXT("Type")));
+					Eq.RequiredSize = static_cast<EHardpointSize>((*EqObj)->GetIntegerField(TEXT("RequiredSize")));
+					Eq.State = static_cast<EEquipmentState>((*EqObj)->GetIntegerField(TEXT("State")));
+					Eq.Health = (*EqObj)->GetNumberField(TEXT("Health"));
+					Eq.PowerRequired = (*EqObj)->GetNumberField(TEXT("PowerRequired"));
+					Eq.PowerConsumption = (*EqObj)->GetNumberField(TEXT("PowerConsumption"));
+					Eq.HeatGeneration = (*EqObj)->GetNumberField(TEXT("HeatGeneration"));
+					Eq.CurrentHeat = (*EqObj)->GetNumberField(TEXT("CurrentHeat"));
+					Eq.bRequiresCoolant = (*EqObj)->GetBoolField(TEXT("bRequiresCoolant"));
+					Eq.CoolantFlow = (*EqObj)->GetNumberField(TEXT("CoolantFlow"));
+					Eq.Mass = (*EqObj)->GetNumberField(TEXT("Mass"));
+					Eq.CrewRequired = (*EqObj)->GetIntegerField(TEXT("CrewRequired"));
+
+					// Performance stats
+					const TSharedPtr<FJsonObject>* StatsObj;
+					if ((*EqObj)->TryGetObjectField(TEXT("PerformanceStats"), StatsObj))
+					{
+						for (const auto& StatPair : (*StatsObj)->Values)
+						{
+							Eq.PerformanceStats.Add(StatPair.Key, StatPair.Value->AsNumber());
+						}
+					}
+
+					HP.MountedEquipment = Eq;
+				}
+
+				HardpointLayout.Hardpoints.Add(HP.HardpointID, HP);
+			}
+		}
+	}
+
+	// ===== Deserialize Resource Network =====
+	const TSharedPtr<FJsonObject>* ResourceObj;
+	if (RootObject->TryGetObjectField(TEXT("ResourceNetwork"), ResourceObj))
+	{
+		// Life Support
+		const TSharedPtr<FJsonObject>* LifeSupportObj;
+		if ((*ResourceObj)->TryGetObjectField(TEXT("LifeSupport"), LifeSupportObj))
+		{
+			ResourceNetwork.LifeSupport.bIsOperational = (*LifeSupportObj)->GetBoolField(TEXT("bIsOperational"));
+			ResourceNetwork.LifeSupport.OxygenProductionRate = (*LifeSupportObj)->GetNumberField(TEXT("OxygenProductionRate"));
+			ResourceNetwork.LifeSupport.CO2RemovalRate = (*LifeSupportObj)->GetNumberField(TEXT("CO2RemovalRate"));
+			ResourceNetwork.LifeSupport.WaterRecyclingRate = (*LifeSupportObj)->GetNumberField(TEXT("WaterRecyclingRate"));
+			ResourceNetwork.LifeSupport.CurrentCrew = (*LifeSupportObj)->GetIntegerField(TEXT("CurrentCrew"));
+			ResourceNetwork.LifeSupport.MaxCrewCapacity = (*LifeSupportObj)->GetIntegerField(TEXT("MaxCrewCapacity"));
+			ResourceNetwork.LifeSupport.OxygenGenerators = (*LifeSupportObj)->GetIntegerField(TEXT("OxygenGenerators"));
+			ResourceNetwork.LifeSupport.CO2Scrubbers = (*LifeSupportObj)->GetIntegerField(TEXT("CO2Scrubbers"));
+			ResourceNetwork.LifeSupport.WaterRecyclers = (*LifeSupportObj)->GetIntegerField(TEXT("WaterRecyclers"));
+		}
+
+		// Coolant System
+		const TSharedPtr<FJsonObject>* CoolantObj;
+		if ((*ResourceObj)->TryGetObjectField(TEXT("Coolant"), CoolantObj))
+		{
+			ResourceNetwork.Coolant.bIsOperational = (*CoolantObj)->GetBoolField(TEXT("bIsOperational"));
+			ResourceNetwork.Coolant.CoolantLevel = (*CoolantObj)->GetNumberField(TEXT("CoolantLevel"));
+			ResourceNetwork.Coolant.MaxCoolantCapacity = (*CoolantObj)->GetNumberField(TEXT("MaxCoolantCapacity"));
+			ResourceNetwork.Coolant.HeatDissipationRate = (*CoolantObj)->GetNumberField(TEXT("HeatDissipationRate"));
+			ResourceNetwork.Coolant.CurrentHeatLoad = (*CoolantObj)->GetNumberField(TEXT("CurrentHeatLoad"));
+			ResourceNetwork.Coolant.HeatExchangers = (*CoolantObj)->GetIntegerField(TEXT("HeatExchangers"));
+			ResourceNetwork.Coolant.Radiators = (*CoolantObj)->GetIntegerField(TEXT("Radiators"));
+			ResourceNetwork.Coolant.RadiatorEfficiency = (*CoolantObj)->GetNumberField(TEXT("RadiatorEfficiency"));
+		}
+
+		// Resource nodes
+		const TArray<TSharedPtr<FJsonValue>>* ResNodesArray;
+		if ((*ResourceObj)->TryGetArrayField(TEXT("Nodes"), ResNodesArray))
+		{
+			for (const TSharedPtr<FJsonValue>& ResNodeValue : *ResNodesArray)
+			{
+				const TSharedPtr<FJsonObject>& ResNodeObj = ResNodeValue->AsObject();
+				FResourceNode ResNode;
+
+				ResNode.NodeID = ResNodeObj->GetStringField(TEXT("NodeID"));
+				ResNode.NodeName = ResNodeObj->GetStringField(TEXT("NodeName"));
+				ResNode.Type = static_cast<EResourceType>(ResNodeObj->GetIntegerField(TEXT("Type")));
+				ResNode.CompartmentID = ResNodeObj->GetStringField(TEXT("CompartmentID"));
+				ResNode.ProductionRate = ResNodeObj->GetNumberField(TEXT("ProductionRate"));
+				ResNode.ConsumptionRate = ResNodeObj->GetNumberField(TEXT("ConsumptionRate"));
+				ResNode.StorageCapacity = ResNodeObj->GetNumberField(TEXT("StorageCapacity"));
+				ResNode.CurrentStorage = ResNodeObj->GetNumberField(TEXT("CurrentStorage"));
+				ResNode.Health = ResNodeObj->GetNumberField(TEXT("Health"));
+				ResNode.bIsOperational = ResNodeObj->GetBoolField(TEXT("bIsOperational"));
+
+				ResourceNetwork.Nodes.Add(ResNode.NodeID, ResNode);
+			}
+		}
+
+		// Resource pipes
+		const TArray<TSharedPtr<FJsonValue>>* ResPipesArray;
+		if ((*ResourceObj)->TryGetArrayField(TEXT("Pipes"), ResPipesArray))
+		{
+			for (const TSharedPtr<FJsonValue>& PipeValue : *ResPipesArray)
+			{
+				const TSharedPtr<FJsonObject>& PipeObj = PipeValue->AsObject();
+				FResourcePipe Pipe;
+
+				Pipe.PipeID = PipeObj->GetStringField(TEXT("PipeID"));
+				Pipe.ResourceType = static_cast<EResourceType>(PipeObj->GetIntegerField(TEXT("ResourceType")));
+				Pipe.SourceNodeID = PipeObj->GetStringField(TEXT("SourceNodeID"));
+				Pipe.DestinationNodeID = PipeObj->GetStringField(TEXT("DestinationNodeID"));
+				Pipe.MaxFlowRate = PipeObj->GetNumberField(TEXT("MaxFlowRate"));
+				Pipe.CurrentFlowRate = PipeObj->GetNumberField(TEXT("CurrentFlowRate"));
+				Pipe.Pressure = PipeObj->GetNumberField(TEXT("Pressure"));
+				Pipe.Health = PipeObj->GetNumberField(TEXT("Health"));
+				Pipe.bIsLeaking = PipeObj->GetBoolField(TEXT("bIsLeaking"));
+				Pipe.LeakRate = PipeObj->GetNumberField(TEXT("LeakRate"));
+
+				ResourceNetwork.Pipes.Add(Pipe.PipeID, Pipe);
+			}
+		}
+
+		ResourceNetwork.LeakingPipes = (*ResourceObj)->GetIntegerField(TEXT("LeakingPipes"));
+		ResourceNetwork.TotalNodes = (*ResourceObj)->GetIntegerField(TEXT("TotalNodes"));
+		ResourceNetwork.TotalPipes = (*ResourceObj)->GetIntegerField(TEXT("TotalPipes"));
+	}
+
+	// ===== Deserialize Crew =====
+	TotalCrewMembers = RootObject->GetIntegerField(TEXT("TotalCrewMembers"));
+
+	UE_LOG(LogTemp, Log, TEXT("ShipInfrastructureManager: Deserialized ship data successfully"));
+	UE_LOG(LogTemp, Log, TEXT("  - Loaded %d compartments, %d power nodes, %d hardpoints, %d resource nodes"),
+		ShipLayout.Compartments.Num(), ElectricalGrid.Nodes.Num(),
+		HardpointLayout.Hardpoints.Num(), ResourceNetwork.Nodes.Num());
+
+	return true;
 }
